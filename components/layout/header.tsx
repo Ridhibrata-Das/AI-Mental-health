@@ -10,13 +10,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Menu } from "lucide-react";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Menu, X } from "lucide-react";
+import { useState } from "react";
 
 export function Header() {
   const pathname = usePathname();
   const isActive = (path: string) => pathname === path;
   const isLoggedIn = false; // TODO: Implement auth state
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const navigationLinks = [
     { href: '/video-call', label: 'Video Call' },
@@ -45,30 +46,22 @@ export function Header() {
             ))}
           </nav>
 
-          {/* Mobile Navigation */}
-          <Sheet>
-            <SheetTrigger asChild className="md:hidden">
-              <Button variant="ghost" size="icon">
-                <Menu className="h-6 w-6" />
-                <span className="sr-only">Toggle menu</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="right" className="w-[240px] sm:w-[300px]">
-              <nav className="flex flex-col space-y-4 mt-6">
-                {navigationLinks.map((link) => (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className={`${isActive(link.href) ? 'text-purple-600' : 'text-gray-600'} hover:text-purple-600 transition-colors`}
-                  >
-                    {link.label}
-                  </Link>
-                ))}
-              </nav>
-            </SheetContent>
-          </Sheet>
+          {/* Mobile Navigation Button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          >
+            {isMobileMenuOpen ? (
+              <X className="h-6 w-6" />
+            ) : (
+              <Menu className="h-6 w-6" />
+            )}
+          </Button>
 
-          <div className="flex items-center space-x-4">
+          {/* Auth/Profile Section */}
+          <div className="hidden md:flex items-center space-x-4">
             {isLoggedIn ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -92,7 +85,7 @@ export function Header() {
             ) : (
               <div className="flex items-center space-x-2">
                 <Link href="/auth/login">
-                  <Button variant="ghost" size="sm" className="hidden sm:inline-flex">Sign In</Button>
+                  <Button variant="ghost" size="sm">Sign In</Button>
                 </Link>
                 <Link href="/auth/register">
                   <Button size="sm">Sign Up</Button>
@@ -101,6 +94,36 @@ export function Header() {
             )}
           </div>
         </div>
+
+        {/* Mobile Menu */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden">
+            <nav className="flex flex-col space-y-4 py-4">
+              {navigationLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`${
+                    isActive(link.href) ? 'text-purple-600' : 'text-gray-600'
+                  } hover:text-purple-600 transition-colors px-4 py-2`}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  {link.label}
+                </Link>
+              ))}
+              {!isLoggedIn && (
+                <div className="flex flex-col space-y-2 px-4 pt-4 border-t">
+                  <Link href="/auth/login">
+                    <Button variant="ghost" className="w-full">Sign In</Button>
+                  </Link>
+                  <Link href="/auth/register">
+                    <Button className="w-full">Sign Up</Button>
+                  </Link>
+                </div>
+              )}
+            </nav>
+          </div>
+        )}
       </div>
     </header>
   );
