@@ -1,6 +1,6 @@
 "use client";
 
-import { FloatingGem } from '../../floating-gem';
+import { FloatingGem } from '../floating-gem';
 
 export function SceneGems() {
   return (
