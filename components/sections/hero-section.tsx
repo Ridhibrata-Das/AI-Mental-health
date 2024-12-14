@@ -20,24 +20,32 @@ export function HeroSection() {
               {" "}Talk and Grow
             </span>
           </h1>
-          <p className="text-xl text-gray-300">
-            Begin your journey with PARVATI.AI, where emotional well-being meets cutting-edge technology.
+          <p className="text-xl text-gray-600">
+            Connect with AI therapists, track your emotional well-being, and take control of your mental health journey.
           </p>
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Link href="/auth/register">
-              <button className="px-8 py-4 bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 rounded-full text-lg font-semibold hover:shadow-lg transition-all duration-300">
-                Start Your Journey
-              </button>
+          <div className="flex gap-4">
+            <Link
+              href="/video-call"
+              className="bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 text-white px-8 py-3 rounded-lg font-medium hover:opacity-90 transition-opacity"
+            >
+              Start Session
             </Link>
-          </motion.div>
+            <Link
+              href="/about"
+              className="text-gray-600 border border-gray-300 px-8 py-3 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+            >
+              Learn More
+            </Link>
+          </div>
         </motion.div>
-        
-        <div className="h-[500px]">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.8 }}
+          className="aspect-square"
+        >
           <Scene />
-        </div>
+        </motion.div>
       </div>
     </div>
   );
