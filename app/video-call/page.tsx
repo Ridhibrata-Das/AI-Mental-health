@@ -18,19 +18,60 @@ export default function VideoCallPage() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const webcamRef = useRef<Webcam>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
-    // Request initial permissions
-    if (isInCall) {
-      navigator.mediaDevices.getUserMedia({ video: isVideoOn, audio: isMicOn })
-        .catch(err => {
-          console.error("Media permission error:", err);
-          if (err.name === "NotAllowedError") {
-            setIsVideoOn(false);
-            setIsMicOn(false);
+    const setupMediaStream = async () => {
+      try {
+        if (isInCall) {
+          // Stop any existing stream
+          if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
           }
-        });
-    }
+
+          // Get new media stream
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: isVideoOn,
+            audio: isMicOn,
+          });
+
+          // Store the stream reference
+          streamRef.current = stream;
+
+          // Update video element if it exists
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+            // Ensure audio is enabled when mic is on
+            videoRef.current.muted = !isMicOn;
+          }
+        } else {
+          // Stop all tracks when not in call
+          if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+          }
+          if (videoRef.current) {
+            videoRef.current.srcObject = null;
+          }
+        }
+      } catch (err) {
+        console.error("Media setup error:", err);
+        // Reset states on error
+        if (err instanceof Error && err.name === "NotAllowedError") {
+          setIsVideoOn(false);
+          setIsMicOn(false);
+        }
+      }
+    };
+
+    setupMediaStream();
+
+    // Cleanup function
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
   }, [isInCall, isVideoOn, isMicOn]);
 
   const handleCallToggle = () => {
@@ -51,13 +92,24 @@ export default function VideoCallPage() {
 
   const handleMicToggle = async () => {
     try {
-      if (!isMicOn) {
+      if (!isMicOn && isInCall) {
         // Request microphone permission when turning on
         await navigator.mediaDevices.getUserMedia({ audio: true });
       }
       setIsMicOn(!isMicOn);
     } catch (err) {
       console.error("Microphone permission error:", err);
+    }
+  };
+
+  const handleVideoToggle = async () => {
+    try {
+      if (!isVideoOn && isInCall) {
+        await navigator.mediaDevices.getUserMedia({ video: true });
+      }
+      setIsVideoOn(!isVideoOn);
+    } catch (err) {
+      console.error("Video permission error:", err);
     }
   };
 
@@ -134,7 +186,7 @@ export default function VideoCallPage() {
               isVideoOn={isVideoOn}
               isInCall={isInCall}
               onMicToggle={handleMicToggle}
-              onVideoToggle={() => setIsVideoOn(!isVideoOn)}
+              onVideoToggle={handleVideoToggle}
               onCallToggle={handleCallToggle}
             />
           </div>

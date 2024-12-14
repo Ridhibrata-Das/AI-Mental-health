@@ -10,14 +10,20 @@ interface FacialAnalysisProps {
 
 export function FacialAnalysis({ videoRef, onEmotionDetected }: FacialAnalysisProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const isModelsLoaded = useRef(false);
 
   useEffect(() => {
     const loadModels = async () => {
       try {
-        await Promise.all([
-          faceapi.nets.tinyFaceDetector.loadFromUri("/models"),
-          faceapi.nets.faceExpressionNet.loadFromUri("/models"),
-        ]);
+        if (!isModelsLoaded.current) {
+          await Promise.all([
+            faceapi.nets.tinyFaceDetector.loadFromUri("/models"),
+            faceapi.nets.faceExpressionNet.loadFromUri("/models"),
+            faceapi.nets.faceLandmark68Net.loadFromUri("/models"),
+          ]);
+          isModelsLoaded.current = true;
+          console.log("Face detection models loaded successfully");
+        }
       } catch (err) {
         console.error("Error loading models:", err);
       }
@@ -26,7 +32,7 @@ export function FacialAnalysis({ videoRef, onEmotionDetected }: FacialAnalysisPr
   }, []);
 
   useEffect(() => {
-    if (!videoRef.current || !canvasRef.current) return;
+    if (!videoRef.current || !canvasRef.current || !isModelsLoaded.current) return;
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -34,54 +40,78 @@ export function FacialAnalysis({ videoRef, onEmotionDetected }: FacialAnalysisPr
 
     const updateCanvasDimensions = () => {
       if (!video || !canvas) return;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+    };
+
+    const drawEmotionBox = (ctx: CanvasRenderingContext2D, emotion: string, confidence: number) => {
+      // Draw blue box in top-left corner
+      const boxWidth = 150;
+      const boxHeight = 60;
+      const padding = 10;
       
-      // Get the video's actual display size
-      const videoRect = video.getBoundingClientRect();
-      canvas.width = videoRect.width;
-      canvas.height = videoRect.height;
+      // Draw box
+      ctx.strokeStyle = '#0000FF';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(padding, padding, boxWidth, boxHeight);
       
-      // Scale the canvas to match video dimensions
-      const scaleX = videoRect.width / video.videoWidth;
-      const scaleY = videoRect.height / video.videoHeight;
+      // Fill with semi-transparent background
+      ctx.fillStyle = 'rgba(0, 0, 255, 0.1)';
+      ctx.fillRect(padding, padding, boxWidth, boxHeight);
       
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.scale(scaleX, scaleY);
-      }
+      // Draw text
+      ctx.fillStyle = '#0000FF';
+      ctx.font = '16px Arial';
+      ctx.fillText(`Emotion: ${emotion}`, padding + 10, padding + 25);
+      ctx.fillText(`Confidence: ${(confidence * 100).toFixed(0)}%`, padding + 10, padding + 45);
     };
 
     const detectEmotions = async () => {
-      if (!video || !canvas) return;
+      if (!video || !canvas || video.paused || video.ended) return;
 
       try {
-        updateCanvasDimensions();
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+          updateCanvasDimensions();
 
-        const detections = await faceapi
-          .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
-          .withFaceExpressions();
+          const detections = await faceapi
+            .detectSingleFace(
+              video,
+              new faceapi.TinyFaceDetectorOptions({ inputSize: 224 })
+            )
+            .withFaceExpressions();
 
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return;
 
-        // Clear previous drawings
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+          // Clear previous drawings
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        if (detections) {
-          // Reset the scale before drawing
-          ctx.setTransform(1, 0, 0, 1, 0, 0);
-          
-          // Draw detection box
-          const box = detections.detection.box;
-          ctx.strokeStyle = '#0066ff';
-          ctx.lineWidth = 3;
-          ctx.strokeRect(box.x, box.y, box.width, box.height);
+          if (detections) {
+            const emotions = detections.expressions;
+            const dominantEmotion = Object.entries(emotions).reduce((a, b) =>
+              a[1] > b[1] ? a : b
+            );
+            
+            // Map face-api emotions to more user-friendly terms
+            const emotionMapping: { [key: string]: string } = {
+              neutral: 'Normal',
+              happy: 'Happy',
+              sad: 'Depressed',
+              angry: 'Anger',
+              fearful: 'Fear',
+              disgusted: 'Disgusted',
+              surprised: 'Excited',
+              // Add more mappings as needed
+            };
 
-          // Update emotion
-          const emotions = detections.expressions;
-          const dominantEmotion = Object.entries(emotions).reduce((a, b) =>
-            a[1] > b[1] ? a : b
-          )[0];
-          onEmotionDetected(dominantEmotion);
+            const displayEmotion = emotionMapping[dominantEmotion[0]] || dominantEmotion[0];
+            
+            // Only update if confidence is above threshold
+            if (dominantEmotion[1] > 0.5) {
+              onEmotionDetected(displayEmotion);
+              drawEmotionBox(ctx, displayEmotion, dominantEmotion[1]);
+            }
+          }
         }
       } catch (err) {
         console.error("Error in emotion detection:", err);
@@ -91,11 +121,14 @@ export function FacialAnalysis({ videoRef, onEmotionDetected }: FacialAnalysisPr
     };
 
     const handleVideoPlay = () => {
-      detectEmotions();
+      if (isModelsLoaded.current) {
+        detectEmotions();
+      }
     };
 
     video.addEventListener("play", handleVideoPlay);
-    if (!video.paused) {
+    
+    if (!video.paused && isModelsLoaded.current) {
       handleVideoPlay();
     }
 
@@ -116,7 +149,8 @@ export function FacialAnalysis({ videoRef, onEmotionDetected }: FacialAnalysisPr
         top: 0,
         left: 0,
         width: '100%',
-        height: '100%'
+        height: '100%',
+        objectFit: 'contain'
       }}
     />
   );
