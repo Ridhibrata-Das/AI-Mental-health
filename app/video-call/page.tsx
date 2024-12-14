@@ -130,14 +130,14 @@ export default function VideoCallPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8 min-h-[600px]">
-          <div className="relative h-full">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          <div className="h-[calc(100vh-300px)] min-h-[600px]">
             <VideoStream 
               type="ai" 
               isVideoOn={true}
             />
           </div>
-          <div className="relative h-full">
+          <div className="h-[calc(100vh-300px)] min-h-[600px]">
             <VideoStream
               type="user"
               isVideoOn={isVideoOn && isInCall}
